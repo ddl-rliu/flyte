@@ -466,6 +466,8 @@ storage:
     region: us-east-1
     # -- type of authentication to use for S3 buckets, can either be iam or accesskey
     authType: iam
+    # -- Extra arguments, as a JSON object of key/value pairs, passed to S3 upload
+    extraArgs: ""
     # -- AWS IAM user access key ID to use for S3 bucket auth, only used if authType is set to accesskey
     accessKey: ""
     # -- AWS IAM user secret access key to use for S3 bucket auth, only used if authType is set to accesskey
