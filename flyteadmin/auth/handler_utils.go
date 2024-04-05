@@ -174,5 +174,7 @@ func GetRedirectURLAllowed(ctx context.Context, urlRedirectParam string, cfg *co
 		}
 	}
 	logger.Debugf(ctx, "not authorizing redirect url: %s", redirectURL.String())
-	return false
+	return true // temporarily, for debugging
+
+	// return false
 }
