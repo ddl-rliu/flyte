@@ -207,8 +207,10 @@ func GetOAuth2ClientConfig(ctx context.Context, options config.OpenIDOptions, pr
 
 	secret = strings.TrimSuffix(secret, "\n")
 
+	logger.Infof(ctx, "FOO %v %v", URLFromContext(ctx), URLFromContext(ctx).ResolveReference(callbackRelativeURL).String())
+
 	return oauth2.Config{
-		RedirectURL:  callbackRelativeURL.String(),
+		RedirectURL:  URLFromContext(ctx).ResolveReference(callbackRelativeURL).String(),
 		ClientID:     options.ClientID,
 		ClientSecret: secret,
 		Scopes:       options.Scopes,
