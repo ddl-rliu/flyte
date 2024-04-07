@@ -77,7 +77,7 @@ func GRPCGetIdentityFromAccessToken(ctx context.Context, authCtx interfaces.Auth
 
 	tokenStr, err := grpcauth.AuthFromMD(ctx, BearerScheme)
 	if err != nil {
-		logger.Debugf(ctx, "Could not retrieve bearer token from metadata %v", err)
+		logger.Debugf(ctx, "Metadata %v Could not retrieve bearer token from metadata %v", metautils.ExtractIncoming(ctx), err)
 		return nil, errors.Wrapf(ErrJwtValidation, err, "Could not retrieve bearer token from metadata")
 	}
 
