@@ -171,6 +171,7 @@ func GetLoginHandler(ctx context.Context, authCtx interfaces.AuthenticationConte
 			// Updates the rawquery with the new query parameters
 			idpURL.RawQuery = query.Encode()
 		}
+		logger.Debugf(ctx, "FOO GetPublicURL %v\nurlString %v\nqueryParams %v\nidpURL %v\n", GetPublicURL(ctx, request, authCtx.Options()), urlString, queryParams, idpURL)
 		http.Redirect(writer, request, idpURL.String(), http.StatusTemporaryRedirect)
 	}
 }
