@@ -141,6 +141,7 @@ func GetLoginHandler(ctx context.Context, authCtx interfaces.AuthenticationConte
 		state := HashCsrfState(csrfToken)
 		logger.Debugf(ctx, "Setting CSRF state cookie to %s and state to %s\n", csrfToken, state)
 		urlString := authCtx.OAuth2ClientConfig(GetPublicURL(ctx, request, authCtx.Options())).AuthCodeURL(state)
+		logger.Debugf(ctx, "FOO GetPublicURL %v // urlString %v // authCtx.OAuth2ClientConfig(GetPublicURL(ctx, request, authCtx.Options())) %v // authCtx.Options() %v // ", GetPublicURL(ctx, request, authCtx.Options()), urlString, authCtx.OAuth2ClientConfig(GetPublicURL(ctx, request, authCtx.Options())), authCtx.Options())
 		queryParams := request.URL.Query()
 		if !GetRedirectURLAllowed(ctx, queryParams.Get(RedirectURLParameter), authCtx.Options()) {
 			logger.Infof(ctx, "unauthorized redirect URI")
@@ -171,7 +172,6 @@ func GetLoginHandler(ctx context.Context, authCtx interfaces.AuthenticationConte
 			// Updates the rawquery with the new query parameters
 			idpURL.RawQuery = query.Encode()
 		}
-		logger.Debugf(ctx, "FOO GetPublicURL %v\nurlString %v\nqueryParams %v\nidpURL %v\n", GetPublicURL(ctx, request, authCtx.Options()), urlString, queryParams, idpURL)
 		http.Redirect(writer, request, idpURL.String(), http.StatusTemporaryRedirect)
 	}
 }
