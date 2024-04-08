@@ -346,6 +346,7 @@ func GetHTTPRequestCookieToMetadataHandler(authCtx interfaces.AuthenticationCont
 	return func(ctx context.Context, request *http.Request) metadata.MD {
 		// TODO: Improve error handling
 		idToken, _, _, _ := authCtx.CookieManager().RetrieveTokenValues(ctx, request)
+		logger.Infof(ctx, "GetHTTPRequestCookieToMetadataHandler idToken %v", idToken)
 		if len(idToken) == 0 {
 			// If no token was found in the cookies, look for an authorization header, starting with a potentially
 			// custom header set in the Config object
@@ -373,6 +374,7 @@ func GetHTTPRequestCookieToMetadataHandler(authCtx interfaces.AuthenticationCont
 		if err != nil {
 			logger.Infof(ctx, "Failed to retrieve user info cookie. Ignoring. Error: %v", err)
 		}
+		logger.Infof(ctx, "userInfo %v", userInfo)
 
 		raw, err := json.Marshal(userInfo)
 		if err != nil {
@@ -383,6 +385,7 @@ func GetHTTPRequestCookieToMetadataHandler(authCtx interfaces.AuthenticationCont
 			meta.Set(UserInfoMDKey, string(raw))
 		}
 
+		logger.Infof(ctx, "meta %v", meta)
 		return meta
 	}
 }
