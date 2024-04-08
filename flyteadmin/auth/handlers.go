@@ -356,9 +356,12 @@ func GetHTTPRequestCookieToMetadataHandler(authCtx interfaces.AuthenticationCont
 				//       header. The grpc-gateway code will automatically translate the 'Authorization' header into the appropriate
 				//       metadata object so if two different tokens are presented, one with the default name and one with the
 				//       custom name, AuthFromMD will find the wrong one.
-				return metadata.MD{
+				foo := metadata.MD{
 					DefaultAuthorizationHeader: []string{request.Header.Get(header)},
 				}
+
+				logger.Infof(ctx, "GetHTTPRequestCookieToMetadataHandler foo %v", foo)
+				return foo
 			}
 
 			logger.Infof(ctx, "Could not find access token cookie while requesting %s", request.RequestURI)
