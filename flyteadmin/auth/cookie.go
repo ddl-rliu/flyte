@@ -4,9 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"net/url"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/gorilla/securecookie"
@@ -71,10 +74,37 @@ func NewSecureCookie(cookieName, value string, hashKey, blockKey []byte, domain 
 	}, nil
 }
 
+func logWithCallStack(ctx context.Context, format string, args ...interface{}) {
+	// Get the call stack
+	pc := make([]uintptr, 10) // at least 1 entry needed
+	n := runtime.Callers(2, pc)
+	if n == 0 {
+		// No call stack information available
+		logger.Infof(ctx, format, args...)
+		return
+	}
+
+	// Resolve the function names from the call stack
+	frames := runtime.CallersFrames(pc[:n])
+	var callStack []string
+	for {
+		frame, more := frames.Next()
+		callStack = append(callStack, frame.Function)
+		if !more {
+			break
+		}
+	}
+
+	// Construct the log message with the call stack
+	message := fmt.Sprintf(format, args...)
+	message = fmt.Sprintf("%s\nCall stack:\n%s", message, strings.Join(callStack, "\n"))
+	logger.Infof(ctx, message)
+}
+
 func retrieveSecureCookie(ctx context.Context, request *http.Request, cookieName string, hashKey, blockKey []byte) (string, error) {
 	cookie, err := request.Cookie(cookieName)
 	if err != nil {
-		logger.Infof(ctx, "Could not detect existing cookie [%v]. Error: %v", cookieName, err)
+		logWithCallStack(ctx, "Could not detect existing cookie [%v]. Error: %v", cookieName, err)
 		return "", errors.Wrapf(ErrTokenNil, err, "Failure to retrieve cookie [%v]", cookieName)
 	}
 
