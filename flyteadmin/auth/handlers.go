@@ -360,7 +360,7 @@ func GetHTTPRequestCookieToMetadataHandler(authCtx interfaces.AuthenticationCont
 					DefaultAuthorizationHeader: []string{request.Header.Get(header)},
 				}
 
-				logger.Infof(ctx, "GetHTTPRequestCookieToMetadataHandler foo %v", foo)
+				logger.Infof(ctx, "GetHTTPRequestCookieToMetadataHandler foo %v\n%v", foo, request.Header)
 				return foo
 			}
 
