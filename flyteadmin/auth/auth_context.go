@@ -29,7 +29,7 @@ const (
 )
 
 var (
-	callbackRelativeURL = config.MustParseURL("callback")
+	callbackRelativeURL = config.MustParseURL("/callback")
 	rootRelativeURL     = config.MustParseURL("/")
 )
 
@@ -62,7 +62,7 @@ func (c Context) OAuth2ClientConfig(requestURL *url.URL) *oauth2.Config {
 	}
 
 	return &oauth2.Config{
-		RedirectURL:  requestURL.ResolveReference(callbackRelativeURL).String(),
+		RedirectURL:  callbackRelativeURL.String(),
 		ClientID:     c.oauth2Client.ClientID,
 		ClientSecret: c.oauth2Client.ClientSecret,
 		Scopes:       c.oauth2Client.Scopes,
