@@ -55,7 +55,9 @@ func (c Context) OAuth2Provider() interfaces.OAuth2Provider {
 }
 
 func (c Context) OAuth2ClientConfig(requestURL *url.URL) *oauth2.Config {
+	logger.Debugf(context.Background(), "FOO requestURL %v", requestURL)
 	if requestURL == nil || strings.HasPrefix(c.oauth2Client.RedirectURL, requestURL.ResolveReference(rootRelativeURL).String()) {
+		logger.Debugf(context.Background(), "FOO requestURL %v oauth2Client.RedirectURL %v", requestURL, c.oauth2Client.RedirectURL)
 		return c.oauth2Client
 	}
 
