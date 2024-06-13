@@ -2,6 +2,7 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 	"hash/fnv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/flyteorg/flyte/flytepropeller/pkg/compiler/common"
 	"github.com/flyteorg/flyte/flytepropeller/pkg/compiler/errors"
 	"github.com/flyteorg/flyte/flytepropeller/pkg/utils"
+	"github.com/flyteorg/flyte/flytestdlib/logger"
 )
 
 const (
@@ -240,6 +242,7 @@ func BuildFlyteWorkflow(wfClosure *core.CompiledWorkflowClosure, inputs *core.Li
 	}
 
 	name, generatedName, label, project, domain, err := generateName(wf.GetId(), executionID)
+	logger.Errorf(context.Background(), "generateName %v %v %v %v %v Error[%v]", name, generatedName, label, project, domain, err)
 	if err != nil {
 		errs.Collect(errors.NewWorkflowBuildError(err))
 	}
