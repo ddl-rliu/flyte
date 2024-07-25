@@ -157,6 +157,7 @@ func CreateTaskExecutionModel(ctx context.Context, input CreateTaskExecutionMode
 		Metadata:     metadata,
 		EventVersion: input.Request.Event.EventVersion,
 	}
+	logger.Warnf(ctx, "CreateTaskExecutionModel input.Request.Event.CustomInfo: %v", input.Request.Event.CustomInfo)
 
 	if len(input.Request.Event.Reasons) > 0 {
 		for _, reason := range input.Request.Event.Reasons {
@@ -495,6 +496,8 @@ func FromTaskExecutionModel(taskExecutionModel models.TaskExecution, opts *Execu
 	if err != nil {
 		return nil, errors.NewFlyteAdminErrorf(codes.Internal, "failed to unmarshal closure")
 	}
+	ctx := context.Background()
+	logger.Warnf(ctx, "closure: %v %v", taskExecutionModel.Closure, closure)
 	if closure.GetError() != nil && opts != nil && opts.TrimErrorMessage && len(closure.GetError().Message) > 0 {
 		trimmedErrOutputResult := closure.GetError()
 		trimmedErrMessage := TrimErrorMessage(trimmedErrOutputResult.GetMessage())

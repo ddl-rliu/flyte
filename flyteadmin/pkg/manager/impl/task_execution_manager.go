@@ -281,6 +281,7 @@ func (m *TaskExecutionManager) ListTaskExecutions(
 
 	// Use default transformer options so that error messages shown for task execution attempts in the console sidebar show the full error stack trace.
 	taskExecutionList, err := transformers.FromTaskExecutionModels(output.TaskExecutions, transformers.DefaultExecutionTransformerOptions)
+	logger.Warnf(ctx, "taskExecutionList: %v %v", taskExecutionList, err)
 	if err != nil {
 		logger.Debugf(ctx, "failed to transform task execution models for request [%+v] with err: %v", request, err)
 		return nil, err
