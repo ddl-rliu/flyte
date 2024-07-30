@@ -131,6 +131,7 @@ func IdentityContextFromIDTokenToken(ctx context.Context, tokenStr, clientID str
 		logger.Infof(ctx, "Failed to unmarshal claims from id token, err: %v", err)
 	}
 
+	logger.Warnf(ctx, "IdentityContextFromIDTokenToken idToken, claims: %+v %+v", idToken, claims)
 	// This path is used when a user logs into the UI and when you login through the UI, you should have all the capabilities your identity
 	// allows you to have, which is denoted by the "all" scope.
 	// There was a plan to one day define one of a handful of scopes (all, proj admin, user, viewer) and if you configure your IDP
