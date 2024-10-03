@@ -66,6 +66,11 @@ func FromWorkflowModel(workflowModel models.Workflow) (admin.Workflow, error) {
 			CompiledWorkflow: &core.CompiledWorkflowClosure{
 				Primary: &core.CompiledWorkflow{
 					Template: &core.WorkflowTemplate{
+						Metadata: &core.WorkflowMetadata{
+							Tags: map[string]string{
+								"domino.friendlyversion": fmt.Sprintf("%d", workflowModel.ID),
+							},
+						},
 						Interface: &workflowInterface,
 					},
 				},

@@ -88,6 +88,10 @@ func GetWorkflow(
 		return nil, err
 	}
 	closure.CreatedAt = workflow.Closure.CreatedAt
+	closure.CompiledWorkflow.Primary.Template.Metadata.Tags["foo"] = "bar"
+	for key, value := range workflow.GetClosure().GetCompiledWorkflow().GetPrimary().GetTemplate().GetMetadata().GetTags() {
+		closure.CompiledWorkflow.Primary.Template.Metadata.Tags[key] = value
+	}
 	workflow.Closure = closure
 	return &workflow, nil
 }
