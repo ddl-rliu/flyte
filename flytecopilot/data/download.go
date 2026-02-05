@@ -69,6 +69,10 @@ func (d Downloader) handleBlob(ctx context.Context, blob *core.Blob, toPath stri
 	if err != nil {
 		return nil, errors.Wrapf(err, "Blob uri incorrectly formatted")
 	}
+	logger.Infof(ctx, "Blob metadata [%v]", blob.GetMetadata())
+	logger.Infof(ctx, "Blob type [%v]", blob.GetMetadata().GetType())
+	logger.Infof(ctx, "Blob dimensionality [%v]", blob.GetMetadata().GetType().GetDimensionality())
+	logger.Infof(ctx, "Blob format [%v]", blob.GetMetadata().GetType().GetFormat())
 
 	if blob.GetMetadata().GetType().GetDimensionality() == core.BlobType_MULTIPART {
 		// Collect all parts of the multipart blob recursively (List API handles nested directories)
@@ -366,22 +370,27 @@ func (d Downloader) handlePrimitive(primitive *core.Primitive, toFilePath string
 }
 
 func (d Downloader) handleScalar(ctx context.Context, scalar *core.Scalar, toFilePath string, writeToFile bool) (interface{}, *core.Scalar, error) {
+	logger.Infof(ctx, "Handling scalar [%v] to file path [%s] and write to file [%t]", scalar, toFilePath, writeToFile)
 	switch scalar.GetValue().(type) {
 	case *core.Scalar_Primitive:
 		p := scalar.GetPrimitive()
 		i, err := d.handlePrimitive(p, toFilePath, writeToFile)
+		logger.Infof(ctx, "Handled primitive scalar [%v] to file path [%s] and write to file [%t] and result [%v]", scalar, toFilePath, writeToFile, i)
 		return i, scalar, err
 	case *core.Scalar_Blob:
 		b := scalar.GetBlob()
 		i, err := d.handleBlob(ctx, b, toFilePath)
+		logger.Infof(ctx, "Handled blob scalar [%v] to file path [%s] and write to file [%t] and metadata [%v] and result [%v]", scalar, toFilePath, writeToFile, b.GetMetadata(), i)
 		return i, &core.Scalar{Value: &core.Scalar_Blob{Blob: &core.Blob{Metadata: b.GetMetadata(), Uri: toFilePath}}}, err
 	case *core.Scalar_Schema:
 		b := scalar.GetSchema()
 		i, err := d.handleSchema(ctx, b, toFilePath)
+		logger.Infof(ctx, "Handled schema scalar [%v] to file path [%s] and write to file [%t] and type [%v] and result [%v]", scalar, toFilePath, writeToFile, b.GetType(), i)
 		return i, &core.Scalar{Value: &core.Scalar_Schema{Schema: &core.Schema{Type: b.GetType(), Uri: toFilePath}}}, err
 	case *core.Scalar_Binary:
 		b := scalar.GetBinary()
 		i, err := d.handleBinary(ctx, b, toFilePath, writeToFile)
+		logger.Infof(ctx, "Handled binary scalar [%v] to file path [%s] and write to file [%t] and result [%v]", scalar, toFilePath, writeToFile, i)
 		return i, scalar, err
 	case *core.Scalar_Error:
 		b := scalar.GetError()
@@ -390,10 +399,12 @@ func (d Downloader) handleScalar(ctx context.Context, scalar *core.Scalar, toFil
 	case *core.Scalar_Generic:
 		b := scalar.GetGeneric()
 		i, err := d.handleGeneric(ctx, b, toFilePath, writeToFile)
+		logger.Infof(ctx, "Handled generic scalar [%v] to file path [%s] and write to file [%t] and result [%v]", scalar, toFilePath, writeToFile, i)
 		return i, scalar, err
 	case *core.Scalar_Union:
 		b := scalar.GetUnion()
 		i, lit, err := d.handleLiteral(ctx, b.GetValue(), toFilePath, writeToFile)
+		logger.Infof(ctx, "Handled union scalar [%v] to file path [%s] and write to file [%t] and type [%v] and result [%v]", scalar, toFilePath, writeToFile, b.GetType(), i)
 		return i, &core.Scalar{Value: &core.Scalar_Union{Union: &core.Union{Type: b.GetType(), Value: lit}}}, err
 	case *core.Scalar_NoneType:
 		if writeToFile {
@@ -486,7 +497,7 @@ func (d Downloader) RecursiveDownload(ctx context.Context, inputs *core.LiteralM
 			}
 			logger.Infof(ctx, "read object at location [%s]", offloadedMetadataURI)
 		}
-		varPath := path.Join(dir, variable)
+		varPath := GetFilePathForLiteral(dir, variable, literal)
 		lit := literal
 		f[variable] = futures.NewAsyncFuture(childCtx, func(ctx2 context.Context) (interface{}, error) {
 			v, lit, err := d.handleLiteral(ctx2, lit, varPath, writePrimitiveToFile)

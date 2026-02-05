@@ -1,3 +1,4 @@
+*.patch
 .idea
 _build/
 _bin/

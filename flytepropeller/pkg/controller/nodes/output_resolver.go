@@ -55,8 +55,10 @@ func (r remoteFileOutputResolver) ExtractOutput(ctx context.Context, nl executor
 
 	// retrieving task output
 	if index == nil {
+		logger.Infof(ctx, "resolve.go::ExtractOutput:: Resolving single output for nodeID: [%v] and varName: [%v]", n.GetID(), actualVar)
 		output, err = resolveSingleOutput(ctx, r.store, n.GetID(), outputsFileRef, actualVar)
 	} else {
+		logger.Infof(ctx, "resolve.go::ExtractOutput:: Resolving subtask output for nodeID: [%v] and varName: [%v]", n.GetID(), actualVar)
 		output, err = resolveSubtaskOutput(ctx, r.store, n.GetID(), outputsFileRef, *index, actualVar)
 	}
 
@@ -66,6 +68,7 @@ func (r remoteFileOutputResolver) ExtractOutput(ctx context.Context, nl executor
 
 	// resolving binding attribute path if exist
 	if len(bindAttrPath) > 0 {
+		logger.Infof(ctx, "resolve.go::ExtractOutput:: Resolving binding attribute path for nodeID: [%v] and varName: [%v]", n.GetID(), actualVar)
 		output, err = resolveAttrPathInPromise(ctx, r.store, n.GetID(), output, bindAttrPath)
 	}
 

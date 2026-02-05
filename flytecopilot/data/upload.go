@@ -56,7 +56,7 @@ func (u Uploader) handleSimpleType(_ context.Context, t core.SimpleType, filePat
 	return coreutils.MakeLiteralForSimpleType(t, string(b))
 }
 
-func (u Uploader) handleBlobType(ctx context.Context, localPath string, toPath storage.DataReference) (*core.Literal, error) {
+func (u Uploader) handleBlobType(ctx context.Context, localPath string, toPath storage.DataReference, format string) (*core.Literal, error) {
 	fpath, info, err := IsFileReadable(localPath, true)
 	if err != nil {
 		return nil, err
@@ -107,11 +107,11 @@ func (u Uploader) handleBlobType(ctx context.Context, localPath string, toPath s
 			}
 		}
 
-		return coreutils.MakeLiteralForBlob(toPath, false, ""), nil
+		return coreutils.MakeLiteralForBlob(toPath, false, format), nil
 	}
 	size := info.Size()
 	// Should we make this a go routine as well, so that we can introduce timeouts
-	return coreutils.MakeLiteralForBlob(toPath, false, ""), UploadFileToStorage(ctx, fpath, toPath, size, u.store)
+	return coreutils.MakeLiteralForBlob(toPath, false, format), UploadFileToStorage(ctx, fpath, toPath, size, u.store)
 }
 
 func (u Uploader) RecursiveUpload(ctx context.Context, vars *core.VariableMap, fromPath string, metaOutputPath, dataRawPath storage.DataReference) error {
@@ -151,8 +151,11 @@ func (u Uploader) RecursiveUpload(ctx context.Context, vars *core.VariableMap, f
 			if err != nil {
 				return err
 			}
+			logger.Infof(ctx, "upload.go::RecursiveUpload:: Constructing reference for varName: [%s] and varOutputPath: [%s]", varName, varOutputPath)
+			logger.Infof(ctx, "upload.go::RecursiveUpload:: Blob dimensionality: [%s]", varType.GetBlob().GetDimensionality())
+			logger.Infof(ctx, "upload.go::RecursiveUpload:: Blob format: [%s]", varType.GetBlob().GetFormat())
 			varFutures[varName] = futures.NewAsyncFuture(childCtx, func(ctx2 context.Context) (interface{}, error) {
-				return u.handleBlobType(ctx2, varPath, varOutputPath)
+				return u.handleBlobType(ctx2, varPath, varOutputPath, varType.GetBlob().GetFormat())
 			})
 		case *core.LiteralType_Simple:
 			varFutures[varName] = futures.NewAsyncFuture(childCtx, func(ctx2 context.Context) (interface{}, error) {
@@ -179,6 +182,12 @@ func (u Uploader) RecursiveUpload(ctx context.Context, vars *core.VariableMap, f
 		}
 		outputs.Literals[k] = l
 		logger.Infof(ctx, "Var [%s] completed", k)
+		logger.Infof(ctx, "upload.go::RecursiveUpload:: Literal: [%v]", l)
+		if l.GetScalar() != nil && l.GetScalar().GetBlob() != nil {
+			logger.Infof(ctx, "upload.go::RecursiveUpload:: Blob metadata: [%v]", l.GetScalar().GetBlob().GetMetadata())
+			logger.Infof(ctx, "upload.go::RecursiveUpload:: Blob dimensionality: [%s]", l.GetScalar().GetBlob().GetMetadata().GetType().GetDimensionality())
+			logger.Infof(ctx, "upload.go::RecursiveUpload:: Blob format: [%s]", l.GetScalar().GetBlob().GetMetadata().GetType().GetFormat())
+		}
 	}
 
 	logger.Infof(ctx, "Uploading final outputs to [%s]", metaOutputPath)

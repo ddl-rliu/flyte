@@ -6,10 +6,12 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/pkg/errors"
 
+	"github.com/flyteorg/flyte/flyteidl/gen/pb-go/flyteidl/core"
 	"github.com/flyteorg/flyte/flytestdlib/logger"
 	"github.com/flyteorg/flyte/flytestdlib/storage"
 )
@@ -88,4 +90,14 @@ func DownloadFileFromHTTP(ctx context.Context, ref storage.DataReference) (io.Re
 		return nil, errors.Wrapf(err, "Failed to download from url :%s", ref)
 	}
 	return resp.Body, nil
+}
+
+func GetFilePathForLiteral(dir string, variable string, literal *core.Literal) string {
+	if literal.GetScalar() != nil && literal.GetScalar().GetBlob() != nil {
+		format := literal.GetScalar().GetBlob().GetMetadata().GetType().GetFormat()
+		fileName := variable + "." + format
+		logger.Infof(context.TODO(), "utils.go::GetFilePathForLiteral:: File name: [%s]", fileName)
+		return path.Join(dir, fileName)
+	}
+	return path.Join(dir, variable)
 }

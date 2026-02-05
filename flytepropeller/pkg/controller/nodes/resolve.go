@@ -57,7 +57,7 @@ func ResolveBindingData(ctx context.Context, outputResolver OutputResolver, nl e
 			},
 		}
 	case *core.BindingData_Promise:
-		logger.Debugf(ctx, "bindingData.GetValue() [%v] is of type Promise", bindingData.GetValue())
+		logger.Infof(ctx, "bindingData.GetValue() [%v] is of type Promise", bindingData.GetValue())
 
 		upstreamNodeID := bindingData.GetPromise().GetNodeId()
 		bindToVar := bindingData.GetPromise().GetVar()
@@ -82,7 +82,7 @@ func ResolveBindingData(ctx context.Context, outputResolver OutputResolver, nl e
 
 		return outputResolver.ExtractOutput(ctx, nl, n, bindToVar, bindAttrPath)
 	case *core.BindingData_Scalar:
-		logger.Debugf(ctx, "bindingData.GetValue() [%v] is of type Scalar", bindingData.GetValue())
+		logger.Infof(ctx, "bindingData.GetValue() [%v] is of type Scalar", bindingData.GetValue())
 		literal.Value = &core.Literal_Scalar{Scalar: bindingData.GetScalar()}
 	}
 	return literal, nil
@@ -94,6 +94,7 @@ func Resolve(ctx context.Context, outputResolver OutputResolver, nl executors.No
 	for _, binding := range bindings {
 		logger.Debugf(ctx, "Resolving binding: [%v]", binding)
 		varName := binding.GetVar()
+		logger.Infof(ctx, "resolve.go::Resolve:: Resolving binding: [%v] for nodeID: [%v] and varName: [%v]", binding, nodeID, varName)
 		l, err := ResolveBindingData(ctx, outputResolver, nl, binding.GetBinding())
 		if err != nil {
 			return nil, errors.Wrapf(errors.BindingResolutionError, nodeID, err, "Error binding Var [%v].[%v]", "wf", binding.GetVar())

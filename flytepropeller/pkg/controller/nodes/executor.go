@@ -792,6 +792,8 @@ func (c *nodeExecutor) preExecute(ctx context.Context, dag executors.DAGStructur
 					return *p, nil
 				}
 				inputsFile := v1alpha1.GetInputsFile(dataDir)
+				logger.Infof(ctx, "executor.go::preExecute:: Writing inputs to file [%s]", inputsFile)
+				logger.Infof(ctx, "executor.go::preExecute:: Node inputs [%v]", nodeInputs)
 				if err := c.store.WriteProtobuf(ctx, inputsFile, storage.Options{}, nodeInputs); err != nil {
 					c.metrics.InputsWriteFailure.Inc(ctx)
 					logger.Errorf(ctx, "Failed to store inputs for Node. Error [%v]. InputsFile [%s]", err, inputsFile)
