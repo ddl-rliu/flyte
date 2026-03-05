@@ -80,6 +80,11 @@ message BlobType {
     // csv, parquet etc
     string format = 1;
     BlobDimensionality dimensionality = 2;
+
+    // Optional file extension (without leading dot) to use when materializing
+    // the blob to local disk during copilot download, e.g. "csv", "parquet".
+    // When empty, no extension is appended.
+    string file_extension = 3;
 }
 
 // Enables declaring enum types, with predefined string values

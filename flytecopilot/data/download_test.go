@@ -133,6 +133,88 @@ func TestHandleBlobSinglePart(t *testing.T) {
 	}
 }
 
+func TestHandleBlobSinglePartWithFileExtension(t *testing.T) {
+	s, err := storage.NewDataStore(&storage.Config{Type: storage.TypeMemory}, promutils.NewTestScope())
+	assert.NoError(t, err)
+	ref := storage.DataReference("s3://container/file")
+	err = s.WriteRaw(context.Background(), ref, 0, storage.Options{}, bytes.NewReader([]byte("data")))
+	assert.NoError(t, err)
+
+	d := Downloader{store: s}
+
+	blob := &core.Blob{
+		Uri: "s3://container/file",
+		Metadata: &core.BlobMetadata{
+			Type: &core.BlobType{
+				Dimensionality: core.BlobType_SINGLE,
+				FileExtension:  "csv",
+			},
+		},
+	}
+
+	tmpDir, err := os.MkdirTemp("", "blob_ext_test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	toPath := filepath.Join(tmpDir, "data")
+	result, err := d.handleBlob(context.Background(), blob, toPath)
+	assert.NoError(t, err)
+
+	expectedPath := toPath + ".csv"
+	assert.Equal(t, expectedPath, result)
+
+	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
+		t.Errorf("expected file %s to exist", expectedPath)
+	}
+}
+
+func TestResolvePathWithFileExtension(t *testing.T) {
+	t.Run("empty extension returns base path unchanged", func(t *testing.T) {
+		blob := &core.Blob{
+			Uri: "s3://bucket/key",
+			Metadata: &core.BlobMetadata{
+				Type: &core.BlobType{
+					Dimensionality: core.BlobType_SINGLE,
+				},
+			},
+		}
+		assert.Equal(t, "/var/inputs/data", resolvePathWithFileExtension("/var/inputs/data", blob))
+	})
+
+	t.Run("appends extension with dot", func(t *testing.T) {
+		blob := &core.Blob{
+			Uri: "s3://bucket/key",
+			Metadata: &core.BlobMetadata{
+				Type: &core.BlobType{
+					Dimensionality: core.BlobType_SINGLE,
+					FileExtension:  "csv",
+				},
+			},
+		}
+		assert.Equal(t, "/var/inputs/data.csv", resolvePathWithFileExtension("/var/inputs/data", blob))
+	})
+
+	t.Run("does not double dot if extension already has one", func(t *testing.T) {
+		blob := &core.Blob{
+			Uri: "s3://bucket/key",
+			Metadata: &core.BlobMetadata{
+				Type: &core.BlobType{
+					Dimensionality: core.BlobType_SINGLE,
+					FileExtension:  ".parquet",
+				},
+			},
+		}
+		assert.Equal(t, "/var/inputs/data.parquet", resolvePathWithFileExtension("/var/inputs/data", blob))
+	})
+
+	t.Run("nil metadata returns base path", func(t *testing.T) {
+		blob := &core.Blob{
+			Uri: "s3://bucket/key",
+		}
+		assert.Equal(t, "/var/inputs/data", resolvePathWithFileExtension("/var/inputs/data", blob))
+	})
+}
+
 func TestHandleBlobHTTP(t *testing.T) {
 	s, err := storage.NewDataStore(&storage.Config{Type: storage.TypeMemory}, promutils.NewTestScope())
 	assert.NoError(t, err)

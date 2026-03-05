@@ -105,6 +105,11 @@ pub struct BlobType {
     pub format: ::prost::alloc::string::String,
     #[prost(enumeration="blob_type::BlobDimensionality", tag="2")]
     pub dimensionality: i32,
+    /// Optional file extension (without leading dot) to use when materializing
+    /// the blob to local disk during copilot download, e.g. "csv", "parquet".
+    /// When empty, no extension is appended.
+    #[prost(string, tag="3")]
+    pub file_extension: ::prost::alloc::string::String,
 }
 /// Nested message and enum types in `BlobType`.
 pub mod blob_type {

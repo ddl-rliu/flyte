@@ -33,6 +33,20 @@ type Downloader struct {
 	mode core.IOStrategy_DownloadMode
 }
 
+// resolvePathWithFileExtension appends the file extension from the blob's
+// BlobType to the given base path, if one is set. The extension is added with
+// a leading dot (e.g. file_extension="csv" turns "/inputs/data" into
+// "/inputs/data.csv"). Returns basePath unchanged when file_extension is empty.
+func resolvePathWithFileExtension(basePath string, blob *core.Blob) string {
+	if ext := blob.GetMetadata().GetType().GetFileExtension(); ext != "" {
+		if !strings.HasPrefix(ext, ".") {
+			ext = "." + ext
+		}
+		return basePath + ext
+	}
+	return basePath
+}
+
 // TODO add timeout and rate limit
 // TODO use chunk to download
 func (d Downloader) handleBlob(ctx context.Context, blob *core.Blob, toPath string) (interface{}, error) {
@@ -227,6 +241,8 @@ func (d Downloader) handleBlob(ctx context.Context, blob *core.Blob, toPath stri
 		logger.Infof(ctx, "successfully copied %d remote files from [%s] to local [%s]", downloadSuccess, blobRef, toPath)
 		return toPath, nil
 	} else if blob.GetMetadata().GetType().GetDimensionality() == core.BlobType_SINGLE {
+		toPath = resolvePathWithFileExtension(toPath, blob)
+
 		// reader should be declared here (avoid being shared across all goroutines)
 		var reader io.ReadCloser
 		if scheme == "http" || scheme == "https" {
@@ -374,7 +390,8 @@ func (d Downloader) handleScalar(ctx context.Context, scalar *core.Scalar, toFil
 	case *core.Scalar_Blob:
 		b := scalar.GetBlob()
 		i, err := d.handleBlob(ctx, b, toFilePath)
-		return i, &core.Scalar{Value: &core.Scalar_Blob{Blob: &core.Blob{Metadata: b.GetMetadata(), Uri: toFilePath}}}, err
+		resolvedPath := resolvePathWithFileExtension(toFilePath, b)
+		return i, &core.Scalar{Value: &core.Scalar_Blob{Blob: &core.Blob{Metadata: b.GetMetadata(), Uri: resolvedPath}}}, err
 	case *core.Scalar_Schema:
 		b := scalar.GetSchema()
 		i, err := d.handleSchema(ctx, b, toFilePath)
