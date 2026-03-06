@@ -168,7 +168,70 @@ func TestHandleBlobSinglePartWithFileExtension(t *testing.T) {
 	}
 }
 
-func TestResolvePathWithFileExtension(t *testing.T) {
+func TestHandleBlobSinglePartWithLegacyFilename(t *testing.T) {
+	s, err := storage.NewDataStore(&storage.Config{Type: storage.TypeMemory}, promutils.NewTestScope())
+	assert.NoError(t, err)
+	ref := storage.DataReference("s3://container/file")
+	err = s.WriteRaw(context.Background(), ref, 0, storage.Options{}, bytes.NewReader([]byte("legacy-data")))
+	assert.NoError(t, err)
+
+	d := Downloader{store: s}
+
+	blob := &core.Blob{
+		Uri: "s3://container/file",
+		Metadata: &core.BlobMetadata{
+			Type: &core.BlobType{
+				Dimensionality:      core.BlobType_SINGLE,
+				FileExtension:       "csv",
+				EnableLegacyFilename: true,
+			},
+		},
+	}
+
+	tmpDir, err := os.MkdirTemp("", "blob_legacy_test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	toPath := filepath.Join(tmpDir, "data")
+	result, err := d.handleBlob(context.Background(), blob, toPath)
+	assert.NoError(t, err)
+
+	expectedPrimary := toPath + ".csv"
+	assert.Equal(t, expectedPrimary, result)
+
+	if _, err := os.Stat(expectedPrimary); os.IsNotExist(err) {
+		t.Errorf("expected primary file %s to exist", expectedPrimary)
+	}
+	if _, err := os.Stat(toPath); os.IsNotExist(err) {
+		t.Errorf("expected legacy file %s to exist", toPath)
+	}
+
+	primaryContent, err := os.ReadFile(expectedPrimary)
+	assert.NoError(t, err)
+	legacyContent, err := os.ReadFile(toPath)
+	assert.NoError(t, err)
+	assert.Equal(t, primaryContent, legacyContent)
+}
+
+func TestCopyOrLinkFile(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "copy_link_test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	srcPath := filepath.Join(tmpDir, "source.txt")
+	err = os.WriteFile(srcPath, []byte("hello"), 0644)
+	assert.NoError(t, err)
+
+	dstPath := filepath.Join(tmpDir, "dest.txt")
+	err = copyOrLinkFile(srcPath, dstPath)
+	assert.NoError(t, err)
+
+	content, err := os.ReadFile(dstPath)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("hello"), content)
+}
+
+func TestResolveBlobDownloadPaths(t *testing.T) {
 	t.Run("empty extension returns base path unchanged", func(t *testing.T) {
 		blob := &core.Blob{
 			Uri: "s3://bucket/key",
@@ -178,7 +241,9 @@ func TestResolvePathWithFileExtension(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, "/var/inputs/data", resolvePathWithFileExtension("/var/inputs/data", blob))
+		primary, legacy := resolveBlobDownloadPaths("/var/inputs/data", blob)
+		assert.Equal(t, "/var/inputs/data", primary)
+		assert.Equal(t, "", legacy)
 	})
 
 	t.Run("appends extension with dot", func(t *testing.T) {
@@ -191,7 +256,9 @@ func TestResolvePathWithFileExtension(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, "/var/inputs/data.csv", resolvePathWithFileExtension("/var/inputs/data", blob))
+		primary, legacy := resolveBlobDownloadPaths("/var/inputs/data", blob)
+		assert.Equal(t, "/var/inputs/data.csv", primary)
+		assert.Equal(t, "", legacy)
 	})
 
 	t.Run("does not double dot if extension already has one", func(t *testing.T) {
@@ -204,14 +271,49 @@ func TestResolvePathWithFileExtension(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, "/var/inputs/data.parquet", resolvePathWithFileExtension("/var/inputs/data", blob))
+		primary, legacy := resolveBlobDownloadPaths("/var/inputs/data", blob)
+		assert.Equal(t, "/var/inputs/data.parquet", primary)
+		assert.Equal(t, "", legacy)
 	})
 
 	t.Run("nil metadata returns base path", func(t *testing.T) {
 		blob := &core.Blob{
 			Uri: "s3://bucket/key",
 		}
-		assert.Equal(t, "/var/inputs/data", resolvePathWithFileExtension("/var/inputs/data", blob))
+		primary, legacy := resolveBlobDownloadPaths("/var/inputs/data", blob)
+		assert.Equal(t, "/var/inputs/data", primary)
+		assert.Equal(t, "", legacy)
+	})
+
+	t.Run("enable_legacy_filename returns both paths", func(t *testing.T) {
+		blob := &core.Blob{
+			Uri: "s3://bucket/key",
+			Metadata: &core.BlobMetadata{
+				Type: &core.BlobType{
+					Dimensionality:      core.BlobType_SINGLE,
+					FileExtension:       "csv",
+					EnableLegacyFilename: true,
+				},
+			},
+		}
+		primary, legacy := resolveBlobDownloadPaths("/var/inputs/data", blob)
+		assert.Equal(t, "/var/inputs/data.csv", primary)
+		assert.Equal(t, "/var/inputs/data", legacy)
+	})
+
+	t.Run("enable_legacy_filename without extension returns base only", func(t *testing.T) {
+		blob := &core.Blob{
+			Uri: "s3://bucket/key",
+			Metadata: &core.BlobMetadata{
+				Type: &core.BlobType{
+					Dimensionality:      core.BlobType_SINGLE,
+					EnableLegacyFilename: true,
+				},
+			},
+		}
+		primary, legacy := resolveBlobDownloadPaths("/var/inputs/data", blob)
+		assert.Equal(t, "/var/inputs/data", primary)
+		assert.Equal(t, "", legacy)
 	})
 }
 

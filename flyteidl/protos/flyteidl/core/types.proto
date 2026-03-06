@@ -85,6 +85,12 @@ message BlobType {
     // the blob to local disk during copilot download, e.g. "csv", "parquet".
     // When empty, no extension is appended.
     string file_extension = 3;
+
+    // When true and file_extension is non-empty, the copilot download phase
+    // writes the blob to both the extended path (with extension) and the
+    // base path (without extension), preserving backward compatibility for
+    // tasks that read from the extensionless path. Default is false.
+    bool enable_legacy_filename = 4;
 }
 
 // Enables declaring enum types, with predefined string values

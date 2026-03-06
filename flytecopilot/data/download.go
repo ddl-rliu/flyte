@@ -33,18 +33,44 @@ type Downloader struct {
 	mode core.IOStrategy_DownloadMode
 }
 
-// resolvePathWithFileExtension appends the file extension from the blob's
-// BlobType to the given base path, if one is set. The extension is added with
-// a leading dot (e.g. file_extension="csv" turns "/inputs/data" into
-// "/inputs/data.csv"). Returns basePath unchanged when file_extension is empty.
-func resolvePathWithFileExtension(basePath string, blob *core.Blob) string {
-	if ext := blob.GetMetadata().GetType().GetFileExtension(); ext != "" {
-		if !strings.HasPrefix(ext, ".") {
-			ext = "." + ext
-		}
-		return basePath + ext
+// resolveBlobDownloadPaths determines the primary download path and an optional
+// legacy (extensionless) path for a blob.  When file_extension is set the
+// primary path gains a dot-extension suffix.  If enable_legacy_filename is also
+// true the original base path is returned as legacyPath so callers can create a
+// copy there for backward compatibility.
+func resolveBlobDownloadPaths(basePath string, blob *core.Blob) (primaryPath string, legacyPath string) {
+	ext := blob.GetMetadata().GetType().GetFileExtension()
+	if ext == "" {
+		return basePath, ""
 	}
-	return basePath
+	if !strings.HasPrefix(ext, ".") {
+		ext = "." + ext
+	}
+	extendedPath := basePath + ext
+	if blob.GetMetadata().GetType().GetEnableLegacyFilename() {
+		return extendedPath, basePath
+	}
+	return extendedPath, ""
+}
+
+// copyOrLinkFile creates a hard link from src to dst, falling back to a full
+// copy when hard-linking is not possible (e.g. cross-device).
+func copyOrLinkFile(src, dst string) error {
+	if err := os.Link(src, dst); err == nil {
+		return nil
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
 }
 
 // TODO add timeout and rate limit
@@ -241,7 +267,8 @@ func (d Downloader) handleBlob(ctx context.Context, blob *core.Blob, toPath stri
 		logger.Infof(ctx, "successfully copied %d remote files from [%s] to local [%s]", downloadSuccess, blobRef, toPath)
 		return toPath, nil
 	} else if blob.GetMetadata().GetType().GetDimensionality() == core.BlobType_SINGLE {
-		toPath = resolvePathWithFileExtension(toPath, blob)
+		primaryPath, legacyPath := resolveBlobDownloadPaths(toPath, blob)
+		toPath = primaryPath
 
 		// reader should be declared here (avoid being shared across all goroutines)
 		var reader io.ReadCloser
@@ -276,6 +303,14 @@ func (d Downloader) handleBlob(ctx context.Context, blob *core.Blob, toPath stri
 			return nil, errors.Wrapf(err, "failed to write remote data to local filesystem")
 		}
 		logger.Infof(ctx, "Successfully copied [%d] bytes remote data from [%s] to local [%s]", v, blobRef, toPath)
+
+		if legacyPath != "" {
+			if linkErr := copyOrLinkFile(toPath, legacyPath); linkErr != nil {
+				return nil, errors.Wrapf(linkErr, "failed to create legacy copy at %s", legacyPath)
+			}
+			logger.Infof(ctx, "Created legacy copy at [%s]", legacyPath)
+		}
+
 		return toPath, nil
 	}
 
@@ -390,7 +425,7 @@ func (d Downloader) handleScalar(ctx context.Context, scalar *core.Scalar, toFil
 	case *core.Scalar_Blob:
 		b := scalar.GetBlob()
 		i, err := d.handleBlob(ctx, b, toFilePath)
-		resolvedPath := resolvePathWithFileExtension(toFilePath, b)
+		resolvedPath, _ := resolveBlobDownloadPaths(toFilePath, b)
 		return i, &core.Scalar{Value: &core.Scalar_Blob{Blob: &core.Blob{Metadata: b.GetMetadata(), Uri: resolvedPath}}}, err
 	case *core.Scalar_Schema:
 		b := scalar.GetSchema()
