@@ -175,7 +175,7 @@ message OutputReference {
     string node_id = 1;
 
     // Variable name must refer to an output variable for the node.
-    string var = 2;
+    string variable_name = 2;
 
     repeated PromiseAttribute attr_path = 3;
 }  

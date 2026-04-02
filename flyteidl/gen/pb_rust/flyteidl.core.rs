@@ -249,7 +249,7 @@ pub struct OutputReference {
     pub node_id: ::prost::alloc::string::String,
     /// Variable name must refer to an output variable for the node.
     #[prost(string, tag="2")]
-    pub var: ::prost::alloc::string::String,
+    pub variable_name: ::prost::alloc::string::String,
     #[prost(message, repeated, tag="3")]
     pub attr_path: ::prost::alloc::vec::Vec<PromiseAttribute>,
 }

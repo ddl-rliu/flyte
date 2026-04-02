@@ -2568,8 +2568,8 @@ export namespace flyteidl {
             /** OutputReference nodeId */
             nodeId?: (string|null);
 
-            /** OutputReference var */
-            "var"?: (string|null);
+            /** OutputReference variableName */
+            variableName?: (string|null);
 
             /** OutputReference attrPath */
             attrPath?: (flyteidl.core.IPromiseAttribute[]|null);
@@ -2587,8 +2587,8 @@ export namespace flyteidl {
             /** OutputReference nodeId. */
             public nodeId: string;
 
-            /** OutputReference var. */
-            public var: string;
+            /** OutputReference variableName. */
+            public variableName: string;
 
             /** OutputReference attrPath. */
             public attrPath: flyteidl.core.IPromiseAttribute[];

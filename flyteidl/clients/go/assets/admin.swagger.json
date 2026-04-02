@@ -7873,7 +7873,7 @@
           "type": "string",
           "description": "Node id must exist at the graph layer."
         },
-        "var": {
+        "variable_name": {
           "type": "string",
           "description": "Variable name must refer to an output variable for the node."
         },
