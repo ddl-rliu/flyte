@@ -6150,7 +6150,7 @@
                  * @memberof flyteidl.core
                  * @interface IOutputReference
                  * @property {string|null} [nodeId] OutputReference nodeId
-                 * @property {string|null} [variableName] OutputReference variableName
+                 * @property {number|null} ["var"] OutputReference var
                  * @property {Array.<flyteidl.core.IPromiseAttribute>|null} [attrPath] OutputReference attrPath
                  */
     
@@ -6179,12 +6179,12 @@
                 OutputReference.prototype.nodeId = "";
     
                 /**
-                 * OutputReference variableName.
-                 * @member {string} variableName
+                 * OutputReference var.
+                 * @member {number} var
                  * @memberof flyteidl.core.OutputReference
                  * @instance
                  */
-                OutputReference.prototype.variableName = "";
+                OutputReference.prototype["var"] = 0;
     
                 /**
                  * OutputReference attrPath.
@@ -6220,8 +6220,8 @@
                         writer = $Writer.create();
                     if (message.nodeId != null && message.hasOwnProperty("nodeId"))
                         writer.uint32(/* id 1, wireType 2 =*/10).string(message.nodeId);
-                    if (message.variableName != null && message.hasOwnProperty("variableName"))
-                        writer.uint32(/* id 2, wireType 2 =*/18).string(message.variableName);
+                    if (message["var"] != null && message.hasOwnProperty("var"))
+                        writer.uint32(/* id 2, wireType 0 =*/16).int32(message["var"]);
                     if (message.attrPath != null && message.attrPath.length)
                         for (var i = 0; i < message.attrPath.length; ++i)
                             $root.flyteidl.core.PromiseAttribute.encode(message.attrPath[i], writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
@@ -6250,7 +6250,7 @@
                             message.nodeId = reader.string();
                             break;
                         case 2:
-                            message.variableName = reader.string();
+                            message["var"] = reader.int32();
                             break;
                         case 3:
                             if (!(message.attrPath && message.attrPath.length))
@@ -6279,9 +6279,9 @@
                     if (message.nodeId != null && message.hasOwnProperty("nodeId"))
                         if (!$util.isString(message.nodeId))
                             return "nodeId: string expected";
-                    if (message.variableName != null && message.hasOwnProperty("variableName"))
-                        if (!$util.isString(message.variableName))
-                            return "variableName: string expected";
+                    if (message["var"] != null && message.hasOwnProperty("var"))
+                        if (!$util.isInteger(message["var"]))
+                            return "var: integer expected";
                     if (message.attrPath != null && message.hasOwnProperty("attrPath")) {
                         if (!Array.isArray(message.attrPath))
                             return "attrPath: array expected";

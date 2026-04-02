@@ -735,9 +735,9 @@ export class OutputReference extends Message<OutputReference> {
   /**
    * Variable name must refer to an output variable for the node.
    *
-   * @generated from field: string variable_name = 2;
+   * @generated from field: int32 var = 2;
    */
-  variableName = "";
+  var = 0;
 
   /**
    * @generated from field: repeated flyteidl.core.PromiseAttribute attr_path = 3;
@@ -753,7 +753,7 @@ export class OutputReference extends Message<OutputReference> {
   static readonly typeName = "flyteidl.core.OutputReference";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "node_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "variable_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "var", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 3, name: "attr_path", kind: "message", T: PromiseAttribute, repeated: true },
   ]);
 
