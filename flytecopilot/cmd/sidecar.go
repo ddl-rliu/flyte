@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -32,6 +35,8 @@ type UploadOptions struct {
 	remoteOutputsRawPrefix string
 	// Local directory path where the sidecar should look for outputs.
 	localDirectoryPath string
+	// Path to a JSON file mapping variable names to FileUploadConfig.
+	uploadConfigFilePath string
 	// Non primitive types will be dumped in this output format
 	metadataFormat   string
 	uploadMode       string
@@ -49,6 +54,30 @@ func (u *UploadOptions) createWatcher(_ context.Context, w containerwatcher.Watc
 		return containerwatcher.NoopWatcher{}, nil
 	}
 	return nil, fmt.Errorf("unsupported watcher type")
+}
+
+func loadUploadConfigs(uploadConfigFilePath string) (map[string]data.FileUploadConfig, error) {
+	raw, err := os.ReadFile(uploadConfigFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read upload config file %q: %w", uploadConfigFilePath, err)
+	}
+	var configs map[string]data.FileUploadConfig
+	if err := json.Unmarshal(raw, &configs); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal upload config: %w", err)
+	}
+	return configs, nil
+}
+
+func hydrateUploadConfigs(configs map[string]data.FileUploadConfig, vars *core.VariableMap, localDirectoryPath string) map[string]data.FileUploadConfig {
+	for varName := range vars.GetVariables() {
+		if _, ok := configs[varName]; !ok {
+			configs[varName] = data.FileUploadConfig{
+				Path:         path.Join(localDirectoryPath, varName),
+				VariableName: varName,
+			}
+		}
+	}
+	return configs
 }
 
 func (u *UploadOptions) uploader(ctx context.Context) error {
@@ -99,11 +128,18 @@ func (u *UploadOptions) uploader(ctx context.Context) error {
 		return err
 	}
 
+	uploadConfigs, err := loadUploadConfigs(u.uploadConfigFilePath)
+	if err != nil {
+		return errors.Wrap(err, "failed to load upload configs")
+	}
+	hydrateUploadConfigs(uploadConfigs, outputInterface, u.localDirectoryPath)
+
+	errorFilePath := path.Join(u.localDirectoryPath, ErrorFile)
 	dl := data.NewUploader(ctx, u.Store, core.DataLoadingConfig_LiteralMapFormat(f), core.IOStrategy_UploadMode(m), ErrorFile)
 
 	childCtx, cancelFn := context.WithTimeout(ctx, u.timeout)
 	defer cancelFn()
-	if err := dl.RecursiveUpload(childCtx, outputInterface, u.localDirectoryPath, toOutputPath, storage.DataReference(u.remoteOutputsRawPrefix)); err != nil {
+	if err := dl.RecursiveUpload(childCtx, outputInterface, uploadConfigs, errorFilePath, toOutputPath, storage.DataReference(u.remoteOutputsRawPrefix)); err != nil {
 		logger.Errorf(ctx, "Uploading failed, err %s", err)
 		return err
 	}
@@ -143,6 +179,7 @@ func NewUploadCommand(opts *RootOptions) *cobra.Command {
 	uploadCmd.Flags().StringVarP(&uploadOptions.remoteOutputsPrefix, "to-output-prefix", "o", "", "The remote path/key prefix for output metadata in stow store.")
 	uploadCmd.Flags().StringVarP(&uploadOptions.remoteOutputsRawPrefix, "to-raw-output", "x", "", "The remote path/key prefix for outputs in remote store. This is a sandbox directory and all data will be uploaded here.")
 	uploadCmd.Flags().StringVarP(&uploadOptions.localDirectoryPath, "from-local-dir", "f", "", "The local directory on disk where data will be available for upload.")
+	uploadCmd.Flags().StringVarP(&uploadOptions.uploadConfigFilePath, "upload-config-file-path", "", "", "Path to a JSON file mapping output variable names to their local file paths.")
 	uploadCmd.Flags().StringVarP(&uploadOptions.metadataFormat, "format", "m", core.DataLoadingConfig_JSON.String(), fmt.Sprintf("What should be the output format for the primitive and structured types. Options [%v]", GetFormatVals()))
 	uploadCmd.Flags().StringVarP(&uploadOptions.uploadMode, "upload-mode", "u", core.IOStrategy_UPLOAD_ON_EXIT.String(), fmt.Sprintf("When should upload start/upload mode. Options [%v]", GetUploadModeVals()))
 	uploadCmd.Flags().StringVarP(&uploadOptions.metaOutputName, "meta-output-name", "", "outputs.pb", "The key name under the remoteOutputPrefix that should be return to provide meta information about the outputs on successful execution")
