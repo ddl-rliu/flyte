@@ -27,44 +27,13 @@ import (
 	"github.com/flyteorg/flyte/flytestdlib/storage"
 )
 
-var validFileExtensionRe = regexp.MustCompile(`^[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*$`)
+var ValidFileExtensionRe = regexp.MustCompile(`^[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*$`)
 
 type Downloader struct {
 	format core.DataLoadingConfig_LiteralMapFormat
 	store  *storage.DataStore
 	// TODO support download mode
 	mode core.IOStrategy_DownloadMode
-}
-
-// By default, blobs (FlyteFiles) were not and still are not written with a
-// file extension. For example, a data: FlyteFile["csv"] blob is written
-// to "inputs/data", even though Format="csv".
-//
-// When FileExtension="" (the default), this old behavior is preserved.
-//
-// However, an input blob
-// `data: Annotated[FlyteFile["csv"], FileDownloadConfig(file_extension="csv")]`
-// should be written to "inputs/data.csv" (when FileExtension="csv" - new behavior).
-func resolveVarFilenames(ctx context.Context, vars *core.VariableMap) map[string]string {
-	varFilenames := make(map[string]string, len(vars.GetVariables()))
-	for varName, variable := range vars.GetVariables() {
-		varType := variable.GetType()
-		switch varType.GetType().(type) {
-		case *core.LiteralType_Blob:
-			ext := varType.GetBlob().GetFileExtension()
-			if ext == "" {
-				varFilenames[varName] = varName
-			} else if !validFileExtensionRe.MatchString(ext) {
-				logger.Warnf(ctx, "invalid file extension for variable %q [%q], ignoring...", varName, ext)
-				varFilenames[varName] = varName
-			} else {
-				varFilenames[varName] = varName + "." + ext
-			}
-		default:
-			varFilenames[varName] = varName
-		}
-	}
-	return varFilenames
 }
 
 // TODO add timeout and rate limit
@@ -467,7 +436,14 @@ func (d Downloader) handleLiteral(ctx context.Context, lit *core.Literal, filePa
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "failed to create directory [%s]", filePath)
 		}
-		v, m, err := d.RecursiveDownload(ctx, lit.GetMap(), filePath, make(map[string]string), writeToFile)
+		nestedConfigs := make(map[string]FileIOConfig, len(lit.GetMap().GetLiterals()))
+		for key := range lit.GetMap().GetLiterals() {
+			nestedConfigs[key] = FileIOConfig{
+				Path:         path.Join(filePath, key),
+				VariableName: key,
+			}
+		}
+		v, m, err := d.RecursiveDownload(ctx, lit.GetMap(), nestedConfigs, writeToFile)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -503,7 +479,7 @@ type downloadedResult struct {
 	v   interface{}
 }
 
-func (d Downloader) RecursiveDownload(ctx context.Context, inputs *core.LiteralMap, dir string, varFilenames map[string]string, writePrimitiveToFile bool) (VarMap, *core.LiteralMap, error) {
+func (d Downloader) RecursiveDownload(ctx context.Context, inputs *core.LiteralMap, downloadConfigs map[string]FileIOConfig, writePrimitiveToFile bool) (VarMap, *core.LiteralMap, error) {
 	childCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	if inputs == nil || len(inputs.GetLiterals()) == 0 {
@@ -521,11 +497,11 @@ func (d Downloader) RecursiveDownload(ctx context.Context, inputs *core.LiteralM
 			}
 			logger.Infof(ctx, "read object at location [%s]", offloadedMetadataURI)
 		}
-		filename := variable
-		if varFilename, ok := varFilenames[variable]; ok {
-			filename = varFilename
+		cfg, ok := downloadConfigs[variable]
+		if !ok {
+			return nil, nil, fmt.Errorf("no download config found for variable %q", variable)
 		}
-		varPath := path.Join(dir, filename)
+		varPath := cfg.Path
 		lit := literal
 		f[variable] = futures.NewAsyncFuture(childCtx, func(ctx2 context.Context) (interface{}, error) {
 			v, lit, err := d.handleLiteral(ctx2, lit, varPath, writePrimitiveToFile)
@@ -559,7 +535,7 @@ func (d Downloader) RecursiveDownload(ctx context.Context, inputs *core.LiteralM
 	return vmap, m, nil
 }
 
-func (d Downloader) DownloadInputs(ctx context.Context, vars *core.VariableMap, inputRef storage.DataReference, outputDir string) error {
+func (d Downloader) DownloadInputs(ctx context.Context, inputRef storage.DataReference, outputDir string, downloadConfigs map[string]FileIOConfig) error {
 	logger.Infof(ctx, "Downloading inputs from [%s]", inputRef)
 	defer logger.Infof(ctx, "Exited downloading inputs from [%s]", inputRef)
 	if err := os.MkdirAll(outputDir, os.ModePerm); err != nil {
@@ -573,8 +549,7 @@ func (d Downloader) DownloadInputs(ctx context.Context, vars *core.VariableMap, 
 		return errors.Wrapf(err, "failed to download input metadata message from remote store")
 	}
 
-	varFilenames := resolveVarFilenames(ctx, vars)
-	varMap, lMap, err := d.RecursiveDownload(ctx, inputs, outputDir, varFilenames, true)
+	varMap, lMap, err := d.RecursiveDownload(ctx, inputs, downloadConfigs, true)
 	if err != nil {
 		return errors.Wrapf(err, "failed to download input variable from remote store")
 	}
