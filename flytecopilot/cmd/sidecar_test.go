@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
@@ -40,7 +41,7 @@ func TestUploadOptions_Upload(t *testing.T) {
 			remoteOutputsPrefix: outputPath,
 			metadataFormat:      core.DataLoadingConfig_JSON.String(),
 			uploadMode:          core.IOStrategy_UPLOAD_ON_EXIT.String(),
-			startWatcherType:    containerwatcher.WatcherTypeNoop,
+			startWatcherType:    containerwatcher.WatcherTypeFile,
 			localDirectoryPath:  tmpDir,
 		}
 
@@ -80,11 +81,16 @@ func TestUploadOptions_Upload(t *testing.T) {
 			metadataFormat:      core.DataLoadingConfig_JSON.String(),
 			uploadMode:          core.IOStrategy_UPLOAD_ON_EXIT.String(),
 			startWatcherType:    containerwatcher.WatcherTypeNoop,
-			exitWatcherType:     containerwatcher.WatcherTypeNoop,
+			exitWatcherType:     containerwatcher.WatcherTypeFile,
 			typedInterface:      d,
 			localDirectoryPath:  tmpDir,
 		}
 
+		success := path.Join(tmpDir, SuccessFile)
+		assert.NoError(t, os.WriteFile(success, []byte("done"), os.ModePerm)) // #nosec G306
+		ok, err := containerwatcher.FileExists(success)
+		assert.NoError(t, err)
+		assert.True(t, ok, "successfile not created")
 		assert.NoError(t, uopts.Sidecar(ctx))
 		v, err := store.Head(ctx, "/output/errors.pb")
 		assert.NoError(t, err)
