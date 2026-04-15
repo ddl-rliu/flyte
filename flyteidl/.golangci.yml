@@ -1,22 +1,28 @@
-run:
-  skip-dirs:
-    - pkg/client
-    - gen
+version: "2"
+
 linters:
-  disable-all: true
+  default: none
   enable:
     - errcheck
-    - gosec
     - goconst
-    - goimports
+    - gosec
     - gosimple
     - govet
     - ineffassign
     - misspell
     - nakedret
+    - protogetter
     - staticcheck
-    - typecheck
     - unconvert
     - unparam
     - unused
-    - protogetter
+  exclusions:
+    paths:
+      - pkg/client
+      - gen
+    rules:
+      - text: deprecated
+
+formatters:
+  enable:
+    - goimports

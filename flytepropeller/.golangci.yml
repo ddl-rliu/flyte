@@ -1,35 +1,39 @@
-run:
-  skip-dirs:
-    - pkg/client
+version: "2"
+
 linters:
-  disable-all: true
+  default: none
   enable:
     - errcheck
-    - gosec
-    - gci
     - goconst
-    - goimports
+    - gosec
     - gosimple
     - govet
     - ineffassign
     - misspell
     - nakedret
+    - protogetter
     - staticcheck
-    - typecheck
     - unconvert
     - unparam
     - unused
-    - protogetter
-linters-settings:
-  gci:
-    custom-order: true
-    sections:
-      - standard
-      - default
-      - prefix(github.com/flyteorg)
-    skip-generated: true
-  goconst:
-    ignore-tests: true
-issues:
-  exclude:
-    - copylocks
+  settings:
+    goconst:
+      ignore-tests: true
+  exclusions:
+    paths:
+      - pkg/client
+    rules:
+      - text: copylocks
+      - text: deprecated
+
+formatters:
+  enable:
+    - gci
+    - goimports
+  settings:
+    gci:
+      custom-order: true
+      sections:
+        - standard
+        - default
+        - prefix(github.com/flyteorg)

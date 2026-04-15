@@ -1,40 +1,43 @@
-run:
-  skip-files:
-    # because we're skipping TLS verification - for now
-    - cmd/entrypoints/serve.go
-    - pkg/async/messages/sqs.go
+version: "2"
+
 linters:
-  disable-all: true
+  default: none
   enable:
     - errcheck
-    - gosec
-    - gci
     - goconst
-    - goimports
+    - gosec
     - gosimple
     - govet
     - ineffassign
     - misspell
     - nakedret
+    - protogetter
     - staticcheck
-    - typecheck
     - unconvert
     - unparam
     - unused
-    - protogetter
-linters-settings:
-  gci:
-    custom-order: true
-    sections:
-      - standard
-      - default
-      - prefix(github.com/flyteorg)
-    skip-generated: true
-  goconst:
-    ignore-tests: true
-issues:
-  exclude-rules:
-    - path: pkg/workflowengine/impl/prepare_execution.go
-      text: "copies lock"
-    - path: pkg/runtime/interfaces/application_configuration.go
-      text: "G402: TLS InsecureSkipVerify may be true."
+  settings:
+    goconst:
+      ignore-tests: true
+  exclusions:
+    paths:
+      - cmd/entrypoints/serve.go
+      - pkg/async/messages/sqs.go
+    rules:
+      - path: pkg/workflowengine/impl/prepare_execution.go
+        text: "copies lock"
+      - path: pkg/runtime/interfaces/application_configuration.go
+        text: "G402: TLS InsecureSkipVerify may be true."
+      - text: deprecated
+
+formatters:
+  enable:
+    - gci
+    - goimports
+  settings:
+    gci:
+      custom-order: true
+      sections:
+        - standard
+        - default
+        - prefix(github.com/flyteorg)
