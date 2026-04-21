@@ -158,7 +158,7 @@ func NewDownloadCommand(opts *RootOptions) *cobra.Command {
 
 	downloadCmd.Flags().StringVarP(&downloadOpts.remoteInputsPath, "from-remote", "f", "", "The remote path/key for inputs in stow store.")
 	downloadCmd.Flags().StringVarP(&downloadOpts.remoteOutputsPrefix, "to-output-prefix", "", "", "The remote path/key prefix for outputs in stow store. this is mostly used to write errors.pb.")
-	downloadCmd.Flags().StringVarP(&downloadOpts.localDirectoryPath, "to-local-dir", "o", "", "The local directory on disk where data should be downloaded.")
+	downloadCmd.Flags().StringVarP(&downloadOpts.localDirectoryPath, "to-local-dir", "o", "", "The local directory on disk where data should be downloaded. Use the download-config-* flags to override this for individual inputs.")
 	downloadCmd.Flags().StringVarP(&downloadOpts.downloadConfigDir, "download-config-dir", "", "", "The local directory on disk where the sidecar should look for download configs.")
 	downloadCmd.Flags().StringVarP(&downloadOpts.downloadConfigFilePath, "download-config-file-path", "", "", "Path to a JSON file configuring downloads. It maps input variable names to their local file paths for downloads.")
 	downloadCmd.Flags().StringVarP(&downloadOpts.metadataFormat, "format", "m", core.DataLoadingConfig_JSON.String(), fmt.Sprintf("What should be the output format for the primitive and structured types. Options [%v]", GetFormatVals()))
