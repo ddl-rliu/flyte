@@ -6,6 +6,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 
 	"github.com/flyteorg/flyte/flytecopilot/data"
@@ -56,15 +57,9 @@ func GetUploadModeVals() []string {
 }
 
 func hydrateDownloadConfigs(configs map[string]data.FileIOConfig, vars *core.VariableMap, localDirectoryPath string) map[string]data.FileIOConfig {
-	for varName, variable := range vars.GetVariables() {
+	for varName, _ := range vars.GetVariables() {
 		if _, ok := configs[varName]; !ok {
 			filename := varName
-			if blobType := variable.GetType().GetBlob(); blobType != nil {
-				ext := blobType.GetFileExtension()
-				if ext != "" && data.ValidFileExtensionRe.MatchString(ext) {
-					filename = varName + "." + ext
-				}
-			}
 			configs[varName] = data.FileIOConfig{
 				Path:         path.Join(localDirectoryPath, filename),
 				VariableName: varName,
@@ -75,6 +70,11 @@ func hydrateDownloadConfigs(configs map[string]data.FileIOConfig, vars *core.Var
 }
 
 func (d *DownloadOptions) Download(ctx context.Context) error {
+	variableMap := &core.VariableMap{}
+	if err := proto.Unmarshal(d.inputInterface, variableMap); err != nil {
+		logger.Warnf(ctx, "Bad input interface passed, failed to unmarshal err: %s", err)
+	}
+
 	if d.remoteOutputsPrefix == "" {
 		return fmt.Errorf("to-output-prefix is required")
 	}
