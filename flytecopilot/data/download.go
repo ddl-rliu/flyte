@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -435,9 +436,6 @@ func (d Downloader) handleLiteral(ctx context.Context, lit *core.Literal, filePa
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "failed to create directory [%s]", filePath)
 		}
-<<<<<<< HEAD
-		v, m, err := d.RecursiveDownload(ctx, lit.GetMap(), filePath, writeToFile)
-=======
 		nestedConfigs := make(map[string]FileIOConfig, len(lit.GetMap().GetLiterals()))
 		for key := range lit.GetMap().GetLiterals() {
 			nestedConfigs[key] = FileIOConfig{
@@ -446,7 +444,6 @@ func (d Downloader) handleLiteral(ctx context.Context, lit *core.Literal, filePa
 			}
 		}
 		v, m, err := d.RecursiveDownload(ctx, lit.GetMap(), nestedConfigs, writeToFile)
->>>>>>> bdae0322a (conf)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -482,11 +479,7 @@ type downloadedResult struct {
 	v   interface{}
 }
 
-<<<<<<< HEAD
-func (d Downloader) RecursiveDownload(ctx context.Context, inputs *core.LiteralMap, dir string, writePrimitiveToFile bool) (VarMap, *core.LiteralMap, error) {
-=======
 func (d Downloader) RecursiveDownload(ctx context.Context, inputs *core.LiteralMap, downloadConfigs map[string]FileIOConfig, writePrimitiveToFile bool) (VarMap, *core.LiteralMap, error) {
->>>>>>> bdae0322a (conf)
 	childCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	if inputs == nil || len(inputs.GetLiterals()) == 0 {
@@ -504,15 +497,11 @@ func (d Downloader) RecursiveDownload(ctx context.Context, inputs *core.LiteralM
 			}
 			logger.Infof(ctx, "read object at location [%s]", offloadedMetadataURI)
 		}
-<<<<<<< HEAD
-		varPath := path.Join(dir, variable)
-=======
 		cfg, ok := downloadConfigs[variable]
 		if !ok {
 			return nil, nil, fmt.Errorf("no download config found for variable %q", variable)
 		}
 		varPath := cfg.Path
->>>>>>> bdae0322a (conf)
 		lit := literal
 		f[variable] = futures.NewAsyncFuture(childCtx, func(ctx2 context.Context) (interface{}, error) {
 			v, lit, err := d.handleLiteral(ctx2, lit, varPath, writePrimitiveToFile)
@@ -546,11 +535,7 @@ func (d Downloader) RecursiveDownload(ctx context.Context, inputs *core.LiteralM
 	return vmap, m, nil
 }
 
-<<<<<<< HEAD
-func (d Downloader) DownloadInputs(ctx context.Context, inputRef storage.DataReference, outputDir string) error {
-=======
 func (d Downloader) DownloadInputs(ctx context.Context, inputRef storage.DataReference, outputDir string, downloadConfigs map[string]FileIOConfig) error {
->>>>>>> bdae0322a (conf)
 	logger.Infof(ctx, "Downloading inputs from [%s]", inputRef)
 	defer logger.Infof(ctx, "Exited downloading inputs from [%s]", inputRef)
 	if err := os.MkdirAll(outputDir, os.ModePerm); err != nil {
@@ -563,12 +548,8 @@ func (d Downloader) DownloadInputs(ctx context.Context, inputRef storage.DataRef
 		logger.Errorf(ctx, "Failed to download inputs from [%s], err [%s]", inputRef, err)
 		return errors.Wrapf(err, "failed to download input metadata message from remote store")
 	}
-<<<<<<< HEAD
-	varMap, lMap, err := d.RecursiveDownload(ctx, inputs, outputDir, true)
-=======
 
 	varMap, lMap, err := d.RecursiveDownload(ctx, inputs, downloadConfigs, true)
->>>>>>> bdae0322a (conf)
 	if err != nil {
 		return errors.Wrapf(err, "failed to download input variable from remote store")
 	}
