@@ -8,10 +8,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
+	"sync"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/flyteorg/flyte/flyteidl/clients/go/coreutils"
 	"github.com/flyteorg/flyte/flyteidl/gen/pb-go/flyteidl/core"
@@ -20,7 +21,10 @@ import (
 	"github.com/flyteorg/flyte/flytestdlib/storage"
 )
 
-const maxPrimitiveSize = 1024
+const (
+	maxPrimitiveSize        = 1024
+	maxVarUploadParallelism = 2
+)
 
 type Unmarshal func(r io.Reader, msg proto.Message) error
 type Uploader struct {
@@ -135,7 +139,11 @@ func (u Uploader) RecursiveUpload(ctx context.Context, vars *core.VariableMap, f
 		return errors.Errorf("User Error: %s", string(b))
 	}
 
-	varFutures := make(map[string]futures.Future, len(vars.GetVariables()))
+	type varUploadJob struct {
+		name string
+		run  func(context.Context) (*core.Literal, error)
+	}
+	jobs := make([]varUploadJob, 0, len(vars.GetVariables()))
 	for varName, variable := range vars.GetVariables() {
 		varPath := path.Join(fromPath, varName)
 		varType := variable.GetType()
@@ -151,12 +159,19 @@ func (u Uploader) RecursiveUpload(ctx context.Context, vars *core.VariableMap, f
 			if err != nil {
 				return err
 			}
-			varFutures[varName] = futures.NewAsyncFuture(childCtx, func(ctx2 context.Context) (interface{}, error) {
-				return u.handleBlobType(ctx2, varPath, varOutputPath)
+			jobs = append(jobs, varUploadJob{
+				name: varName,
+				run: func(ctx2 context.Context) (*core.Literal, error) {
+					return u.handleBlobType(ctx2, varPath, varOutputPath)
+				},
 			})
 		case *core.LiteralType_Simple:
-			varFutures[varName] = futures.NewAsyncFuture(childCtx, func(ctx2 context.Context) (interface{}, error) {
-				return u.handleSimpleType(ctx2, varType.GetSimple(), varPath)
+			st := varType.GetSimple()
+			jobs = append(jobs, varUploadJob{
+				name: varName,
+				run: func(ctx2 context.Context) (*core.Literal, error) {
+					return u.handleSimpleType(ctx2, st, varPath)
+				},
 			})
 		default:
 			return fmt.Errorf("currently CoPilot uploader does not support [%s], system error", varType)
@@ -164,21 +179,32 @@ func (u Uploader) RecursiveUpload(ctx context.Context, vars *core.VariableMap, f
 	}
 
 	outputs := &core.LiteralMap{
-		Literals: make(map[string]*core.Literal, len(varFutures)),
+		Literals: make(map[string]*core.Literal, len(jobs)),
 	}
-	for k, f := range varFutures {
-		logger.Infof(ctx, "Waiting for [%s] to complete (it may have a background upload too)", k)
-		v, err := f.Get(ctx)
-		if err != nil {
-			logger.Errorf(ctx, "Failed to upload [%s], reason [%s]", k, err)
-			return err
-		}
-		l, ok := v.(*core.Literal)
-		if !ok {
-			return fmt.Errorf("IllegalState, expected core.Literal, received [%s]", reflect.TypeOf(v))
-		}
-		outputs.Literals[k] = l
-		logger.Infof(ctx, "Var [%s] completed", k)
+	g, gctx := errgroup.WithContext(childCtx)
+	sem := make(chan struct{}, maxVarUploadParallelism)
+	var litMu sync.Mutex
+	for _, job := range jobs {
+		job := job
+		g.Go(func() error {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			logger.Infof(ctx, "Waiting for [%s] to complete (it may have a background upload too)", job.name)
+			lit, err := job.run(gctx)
+			if err != nil {
+				logger.Errorf(ctx, "Failed to upload [%s], reason [%s]", job.name, err)
+				return err
+			}
+			litMu.Lock()
+			outputs.Literals[job.name] = lit
+			litMu.Unlock()
+			logger.Infof(ctx, "Var [%s] completed", job.name)
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return err
 	}
 
 	logger.Infof(ctx, "Uploading final outputs to [%s]", metaOutputPath)
