@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/flyteorg/flyte/flytestdlib/promutils"
 )
@@ -41,8 +42,15 @@ func applyDefaultHeaders(r *http.Request, headers map[string][]string) {
 }
 
 func createHTTPClient(cfg HTTPClientConfig) *http.Client {
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.IdleConnTimeout = 60 * time.Second // Aggressively close idle connections to avoid using stale ones
+	// Allow enough connections for concurrent goroutines
+	tr.MaxIdleConns = 200
+	tr.MaxConnsPerHost = 200
+	tr.MaxIdleConnsPerHost = 200
 	c := &http.Client{
-		Timeout: cfg.Timeout.Duration,
+		Timeout:   cfg.Timeout.Duration,
+		Transport: tr,
 	}
 
 	if len(cfg.Headers) > 0 {
